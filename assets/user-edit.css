@@ -1,0 +1,10 @@
+input#taxjar_expansion-certificate {
+	display: none; 
+}
+
+html[uip-admin-theme=true] body:not(.block-editor-page) #wpcontent input[type=date]#taxjar_expansion-expiration.grayed_out,
+input#taxjar_expansion-expiration.grayed_out,
+html[uip-admin-theme=true] p.description.grayed_out,
+p.description.grayed_out {
+	color: #AAA;
+}

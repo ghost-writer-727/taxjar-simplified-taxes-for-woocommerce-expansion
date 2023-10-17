@@ -1,0 +1,45 @@
+input#taxjar_expansion-certificate {
+	display: none; 
+}
+
+label[for="taxjar_expansion-certificate"] {
+	text-align: center;
+	padding: .5em;
+	border: 2px solid rgb(240, 90, 64);
+	color: rgb(240, 90, 64);
+}
+
+label[for="taxjar_expansion-certificate"]:hover {
+	color: white;
+	background: rgb(240, 90, 64);
+	cursor: pointer;
+}
+span#certificate_name {
+	font-size: .8em;
+	color: #888888;
+}
+span.status-tax-exempt{
+	color: darkgreen;
+}
+span.status-tax-exempt:after{
+	margin-left: 7px;
+    content: "\2713";
+}
+span.status-non-exempt{
+	color: darkred;
+}
+form.tax-status #taxjar_expansion-expiration {
+	width: 100%;
+    padding: 5.5px;
+    border-color: #f05a40;
+    border-style: solid;
+    font-size: 13px;
+    line-height: 1.5em;
+}
+
+form.tax-status #taxjar_expansion-expiration.grayed_out {
+    border-color: #AAAAAA;
+}
+form.tax-status .grayed_out {
+	color: #CCCCCC;
+}
