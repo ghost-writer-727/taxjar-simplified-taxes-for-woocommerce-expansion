@@ -4,14 +4,14 @@ if ( ! defined( 'ABSPATH' ) )  exit; // Exit if accessed directly
 Plugin Name: TaxJar - Sales Tax Automation for WooCommerce - Expansion
 Plugin URI: http://www.danielpurifoy.com
 Description: Enhances the capabilities of the TaxJar plugin to make it more fully integrated with WooCommerce. • Add certificate upload & expiration dates to user profile, which can be sent to Zapier. • Add support to sync additional order statuses. • Auto-assign a default tax exempt status based on certificate & expiration. • Use Zapier to pass expiration date updates directly to TaxJar, Sheets, etc. • Use Zapier to copy the certificate file to Dropbox, AWS, etc. • Create a temporary tax exempt period for all users (for onboarding) • Create a user role for those who are tax exempt for helping with conditional theme elements and settings.
-Version: 1.5.0
+Version: 1.5.1
 Requires at least: 5.5
 Requires PHP: 7.3
 Author: Daniel Purifoy
 ******************
 */
 
-include 'dap.php';
+//include 'dap.php';
 class dap_woocommerce_taxjar_expansion{
 	private static $instance;
 	private $slug = 'taxjar_expansion';
@@ -62,7 +62,7 @@ class dap_woocommerce_taxjar_expansion{
 		add_filter( 'woocommerce_get_settings_taxjar-integration', [$this, 'print_additional_taxjar_settings'] );
 		add_action( 'wp_login', [$this, 'recalculate_cart_totals'], 10, 2 );
 		add_action( 'wp_logout', [$this, 'recalculate_cart_totals'] );
-		dap($this->settings['statuses_to_sync']);
+
 		/*** ADMIN: PROFILE ***/
 		add_action( 'user_edit_form_tag', [$this, 'print_profile_form_tags'] );
 		// This ensures our action is registered just after TaxJar's so the sections are together in Edit User
