@@ -1,8 +1,8 @@
-Taxjar Expansion plugin 1.4.0
+Taxjar Expansion plugin 1.5.0
 
 • Add support to sync additional order statuses beyond the default 'completed' & 'refunded'.
 
-• Gives a place for users to upload certificate to our server: /uploads/tax-certificates/{user_id}/{certificate_file}
+• Gives a place for users to upload/remove certificate to our server: /uploads/tax-certificates/{user_id}/{certificate_file}. All certifcates are stored on the server until manually deleted so they can be audited via FTP if needed.
 
 • Gives a place for users to set expiration date of certificate or to claim a non-expiring 501c3 status.
 

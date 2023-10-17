@@ -1,5 +1,17 @@
+#certificate_name {
+	font-style: italic;
+}
+
 input#taxjar_expansion-certificate {
 	display: none; 
+}
+input#taxjar_expansion-delete-cert {
+	display: none; 
+}
+
+#taxjar_expansion-remove-certificate {
+	color: darkred;
+	cursor: pointer;
 }
 
 html[uip-admin-theme=true] body:not(.block-editor-page) #wpcontent input[type=date]#taxjar_expansion-expiration.grayed_out,

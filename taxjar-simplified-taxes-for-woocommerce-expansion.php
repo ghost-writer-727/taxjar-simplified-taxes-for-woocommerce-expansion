@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) )  exit; // Exit if accessed directly
 Plugin Name: TaxJar - Sales Tax Automation for WooCommerce - Expansion
 Plugin URI: http://www.danielpurifoy.com
 Description: Enhances the capabilities of the TaxJar plugin to make it more fully integrated with WooCommerce. • Add certificate upload & expiration dates to user profile, which can be sent to Zapier. • Add support to sync additional order statuses. • Auto-assign a default tax exempt status based on certificate & expiration. • Use Zapier to pass expiration date updates directly to TaxJar, Sheets, etc. • Use Zapier to copy the certificate file to Dropbox, AWS, etc. • Create a temporary tax exempt period for all users (for onboarding) • Create a user role for those who are tax exempt for helping with conditional theme elements and settings.
-Version: 1.4.0
+Version: 1.5.0
 Requires at least: 5.5
 Requires PHP: 7.3
 Author: Daniel Purifoy
@@ -175,7 +175,6 @@ class dap_woocommerce_taxjar_expansion{
 			'taxjarExpansion',
 			[
 				'autoAssign' => $this->settings['default_status'],
-				// 'tempOverride' => $this->settings['temp_override']
 			]
 		);
 		wp_register_script( 
@@ -338,7 +337,27 @@ class dap_woocommerce_taxjar_expansion{
 		<table class="form-table">
 			<tr>
 				<th><label>Tax Exempt Certificate</label></th>
-				<?php if( 
+				<?php 
+
+				/*
+				The label for #certificate looks like a button and is clickable to trigger the certificate file input.
+				The #certificate-name is the text that displays the current filename & is updated with the filename when a file is selected.
+				The #remove-certificate is the "x" following #certificate-name that removes the certificate by the following process:
+					1. The #remove-certificate is hidden.
+					2. When the #certificate-name is emptied.
+					3. The #delete-cert input is populated with the word "true"
+
+				When a file is uploaded:
+					1. The #certificate-name is updated with the filename.
+					2. #remove-certificate is shown.
+					3. #delete-cert is emptied.
+
+				Upon loading of the page, the #certificate-name is populated with the current filename, but the #certificate file input is empty. Therefore we are using a delete cert flag to know the difference between an empty certificate that should be a left alone and a certificate that should be deleted.
+				Upon saving, it will only delete the certificate if #delete-cert is populated with the word "true".
+				*/
+
+				$remove_button_visible = false;
+				if( 
 					$certificate
 					&& isset( $certificate['url'], $certificate['label'] ) 
 					&& $certificate['url'] 
@@ -347,18 +366,23 @@ class dap_woocommerce_taxjar_expansion{
 					$button_label = 'Replace';
 					$current_filename = $certificate['label'];
 					$url = $certificate['url'];
-					$link = '<em><a href="' . $url . '" target="_blank" download >' . $current_filename . '</a></em>';
+					$link = '<a href="' . $url . '" target="_blank" download >' . $current_filename . '</a>';
+					$remove_button_visible = true;
 			
 				} else {
 					$button_label = 'Upload';
 					$current_filename = '';
 					$url = '';
 					$link = '';
-				} ?>	
+				} 				
+				?>
 				<td>
 					<label for="<?php echo $this->slug ?>-certificate" class="button button-secondary"><?php echo $button_label; ?></label>
-					<p id="certificate_name" class="description"><?php echo $link; ?></p>
+					<p>
+						<span id="certificate_name" class="description"><?php echo $link; ?></span> 
+						<span id="<?php echo $this->slug ?>-remove-certificate" style="<?php echo $remove_button_visible ? '' : 'display:none;' ?>">x</span></p>
 					<input type="file" accept='image/*,.pdf' class="" name="<?php echo $this->slug ?>-certificate" id="<?php echo $this->slug ?>-certificate" />
+					<input type="text" class="" name="<?php echo $this->slug ?>-delete-cert" id="<?php echo $this->slug ?>-delete-cert" />
 				</td>
 			</tr>
 			<tr>
@@ -522,7 +546,6 @@ class dap_woocommerce_taxjar_expansion{
 		$zaps = [];
 
 		// Certificate Upload
-		$certificate = null;
 		$upload = $_FILES[$this->slug . '-certificate'] ?? false;
 		if( 
 			$upload 
@@ -560,8 +583,8 @@ class dap_woocommerce_taxjar_expansion{
 						$zaps['certificate_zap'] = [
 							'certificate' => $certificate,
 							'user_id'	=> $user_id,
-						]; 
-						update_user_meta( 
+						];
+						$updated_certificate = update_user_meta( 
 							$user_id, 
 							$this->slug . '-certificate', 
 							$certificate
@@ -581,10 +604,31 @@ class dap_woocommerce_taxjar_expansion{
 					$this->log( 'Unable to create certificate directory!' );
 				}
 			}
+		} else if(
+			$_POST[$this->slug . '-delete-cert'] == 'true'
+		){
+			/* Saving these so we can inspect or recover them if needed for auditing purposes.
+			// Find the previous cert and delete it
+			$certificate = get_user_meta( $user_id, $this->slug . '-certificate', true );
+			if( 
+				$certificate
+				&& isset( $certificate['path'] )
+				&& file_exists( $certificate['path'] )
+			){
+				unlink( $certificate['path'] );
+			}
+			*/
+			$zaps['certificate_zap'] = [
+				'certificate' => false,
+				'user_id'	=> $user_id,
+			]; 
+			$updated_certificate = delete_user_meta( 
+				$user_id, 
+				$this->slug . '-certificate'
+			);
 		}
 
 		// 501c3 Exemption
-		$is_501c3 = null;
 		$is_501c3 = isset( $_POST[$this->slug . '-501c3'] ) ? true : false;
 		if( 
 			$is_501c3 != get_user_meta( $user_id, $this->slug . '-501c3', true )
@@ -593,7 +637,7 @@ class dap_woocommerce_taxjar_expansion{
 				'user_id' => $user_id,
 				'501c3' => $is_501c3,
 			];
-			update_user_meta( 
+			$updated_501c3 = update_user_meta( 
 				$user_id, 
 				$this->slug . '-501c3', 
 				$is_501c3
@@ -601,7 +645,6 @@ class dap_woocommerce_taxjar_expansion{
 		}
 
 		// Expiration Date
-		$expiration = null;
 		if( $is_501c3 ){
 			$expiration = false;
 		} else if( isset( $_POST[$this->slug . '-expiration'] ) ){
@@ -614,7 +657,7 @@ class dap_woocommerce_taxjar_expansion{
 			}
 		}
 		if( 
-			$expiration !== null 
+			isset( $expiration ) 
 			&& $expiration != get_user_meta( $user_id, $this->slug . '-expiration', true )
 		){
 			$zaps['expiration_zap'] = [
@@ -625,7 +668,7 @@ class dap_woocommerce_taxjar_expansion{
 					'user_id'		=> $user_id,
 					]
 			];
-			update_user_meta(
+			$updated_expiration = update_user_meta(
 				$user_id, 
 				$this->slug . '-expiration',
 				$expiration
@@ -634,11 +677,11 @@ class dap_woocommerce_taxjar_expansion{
 
 		// If any of these were modified, then recheck exemption status
 		if( 
-			$certificate !== null
-			|| $expiration !== null
-			|| $is_501c3 !== null
+			isset( $updated_certificate )
+			|| isset( $updated_501c3 )
+			|| isset( $updated_expiration )
 		){
-			$new_status = $this->update_exempt_status( $user_id, $certificate, $is_501c3, $expiration );
+			$new_status = $this->update_exempt_status( $user_id, $certificate ?? null, $is_501c3, $expiration ?? null );
 			if( $new_status !== null ){
 				$zaps['exempt_status_zap'] = [
 					'status' => $new_status,

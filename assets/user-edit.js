@@ -1,18 +1,32 @@
 jQuery(function($){
-	let originalFilenameLink = $('#certificate_name').html();
+	// When hidden input is changed, update the visible fields
 	$('input#taxjar_expansion-certificate').on('change',function(){
-		
-		let filename = 
-			$(this).val().split("\\").splice(-1,1)[0] 
-			|| 
-			originalFilenameLink ;
-		$('#certificate_name').html(filename);
+		let filename = $(this).val().split("\\").splice(-1,1)[0] 
+		if( filename ){
+			$('#certificate_name').html(filename);
+			$('input#taxjar_expansion-delete-cert').val('')
+			$('#taxjar_expansion-remove-certificate').show();
+			$('label[for="taxjar_expansion-certificate"]').html('Replace')
+		} else {
+			$('#certificate_name').html('');
+			$('input#taxjar_expansion-delete-cert').val('true')
+			$('#taxjar_expansion-remove-certificate').hide();
+			$('label[for="taxjar_expansion-certificate"]').html('Upload')
+		}
 	});
+
+	// When remove button is clicked, clear the hidden input
+	$('#taxjar_expansion-remove-certificate').on('click',function(){
+		$('input#taxjar_expansion-certificate').val('').trigger('change')
+	})
 	
-	if( taxjarExpansion.autoAssign /* || taxjarExpansion.tempOverride */ ){
+	// When settings indicate that users should be auto assigned their tax exemption, disable the default field
+	if( taxjarExpansion.autoAssign ){
 		$('#tax_exemption_type').attr('disabled',true)
+		$('#tax_exemption_type').next('.description').html('This field is auto-assigned based on the the TaxJar Expansion plugin settings below.')
 	}
 
+	// When 501c3 is checked, disable expiration date as it's not needed
 	$('input#taxjar_expansion-501c3').on('change',function(){
 		if ($(this).is(":checked")) {
 			$('input#taxjar_expansion-expiration').addClass('grayed_out')
@@ -25,4 +39,5 @@ jQuery(function($){
 			$('input#taxjar_expansion-expiration').removeClass('grayed_out')
 		}
 	})
-});
+
+})
