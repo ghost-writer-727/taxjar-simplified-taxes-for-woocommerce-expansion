@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) )  exit; // Exit if accessed directly
 Plugin Name: TaxJar - Sales Tax Automation for WooCommerce - Expansion
 Plugin URI: http://www.danielpurifoy.com
 Description: Enhances the capabilities of the TaxJar plugin to make it more fully integrated with WooCommerce. • Add certificate upload & expiration dates to user profile, which can be sent to Zapier. • Add support to sync additional order statuses. • Auto-assign a default tax exempt status based on certificate & expiration. • Use Zapier to pass expiration date updates directly to TaxJar, Sheets, etc. • Use Zapier to copy the certificate file to Dropbox, AWS, etc. • Create a temporary tax exempt period for all users (for onboarding) • Create a user role for those who are tax exempt for helping with conditional theme elements and settings.
-Version: 1.5.1
+Version: 1.6.0
 Requires at least: 5.5
 Requires PHP: 7.3
 Author: Daniel Purifoy
@@ -23,6 +23,7 @@ class dap_woocommerce_taxjar_expansion{
 	private $settings;
 	private $certificates_path;
 	private $certificates_url;
+	CONST TAX_EXEMPTION_TYPE_META_KEY = 'tax_exemption_type';
 	
 	public static function get_instance(){
 		if( null === self::$instance ){
@@ -195,6 +196,15 @@ class dap_woocommerce_taxjar_expansion{
 		){
 			wp_enqueue_script( $this->slug . '-user-edit' );
 			wp_enqueue_style( $this->slug . '-user-edit' );
+
+			// localize constants
+			wp_localize_script(
+				$this->slug . '-user-edit',
+				'taxjarExpansion',
+				[
+					'taxExemptionTypeMetaKey' => self::TAX_EXEMPTION_TYPE_META_KEY,
+				]
+			);
 			return;
 		}
 
@@ -413,9 +423,9 @@ class dap_woocommerce_taxjar_expansion{
 	// We're disabling this field in js, so it won't generate a $_POST item like it should. We need to create the key so TaxJar plugin doesn't throw any errors.
 	public function patch_disabled_select_on_back_end( $user_id ){
 		if( $this->settings['default_status'] ){
-			if( ! isset($_POST['tax_exemption_type'] ) )
+			if( ! isset($_POST[self::TAX_EXEMPTION_TYPE_META_KEY] ) )
 				// It doesn't actually matter what we send since we're auto-assigning later, but it must be set.
-				$_POST['tax_exemption_type'] = false;
+				$_POST[self::TAX_EXEMPTION_TYPE_META_KEY] = false;
 		}
 		if( ! isset($_POST[$this->slug . '-expiration'] ) ){
 			$_POST[ $this->slug . '-expiration' ] = false;
@@ -450,7 +460,7 @@ class dap_woocommerce_taxjar_expansion{
 	public function print_fields_on_front_end( $user_id = false ){
 		$user_id = $user_id ?: get_current_user_id();
 		
-		$exempt_status = get_user_meta( $user_id, 'tax_exemption_type', true ) ? '<span class="status-tax-exempt">Exempt</span>' : '<span class="status-non-exempt">Non-exempt</span>';		
+		$exempt_status = get_user_meta( $user_id, self::TAX_EXEMPTION_TYPE_META_KEY, true ) ? '<span class="status-tax-exempt">Exempt</span>' : '<span class="status-non-exempt">Non-exempt</span>';		
 		
 		$certificate = get_user_meta( $user_id, $this->slug . '-certificate', true );
 		$is_501c3 = get_user_meta( $user_id, $this->slug . '-501c3', true ) ? 1 : 0;
@@ -594,14 +604,14 @@ class dap_woocommerce_taxjar_expansion{
 					if( !is_admin() ) {
 						wc_add_notice( 'Certificate upload failed!', 'error' );
 					} else {
-						$this->log( 'Certificate upload failed!' );
+						$this->log( 'Certificate upload failed!', __LINE__ );
 					}
 				}
 			} else {
 				if( !is_admin() ){
 					wc_add_notice( 'Unable to create certificate directory!', 'error');
 				} else {
-					$this->log( 'Unable to create certificate directory!' );
+					$this->log( 'Unable to create certificate directory!', __LINE__ );
 				}
 			}
 		} else if(
@@ -703,7 +713,7 @@ class dap_woocommerce_taxjar_expansion{
 		}
 		if( $user_id && is_numeric( $user_id ) && $user_id != 0 ){
 			$exempt = $this->is_tax_exempt_status( 
-				get_user_meta( $user_id, 'tax_exemption_type', true )
+				get_user_meta( $user_id, self::TAX_EXEMPTION_TYPE_META_KEY, true )
 			);
 		} else {
 			$exempt = false;
@@ -730,7 +740,7 @@ class dap_woocommerce_taxjar_expansion{
 		if( $cart ){
 			if( $customer = $cart->get_customer() ){
 				if( $user_id = $customer->get_id() ){
-					$exemption_type = get_user_meta( $user_id, 'tax_exemption_type', true );
+					$exemption_type = get_user_meta( $user_id, self::TAX_EXEMPTION_TYPE_META_KEY, true );
 				}
 			}
 		}
@@ -841,7 +851,17 @@ class dap_woocommerce_taxjar_expansion{
 		} else {
 			$exempt = false;
 		}
-		return $this->make_user_exempt( $user_id, $exempt );
+
+		// Attempt to update the status of the user
+		$update_status = $this->update_user_exemption_status( $user_id, $exempt );
+
+		// If use wasn't changed because their status already matched, $update_status will be null.
+		if( $update_status === null ){
+			return $exempt;
+		}
+
+		// If the status was changed, then return the new status.
+		return $update_status;
 	}
 	
 	private function is_valid_certificate( $file ){
@@ -865,7 +885,7 @@ class dap_woocommerce_taxjar_expansion{
 			return true;
 		}
 		if( !$timestamp || $timestamp < time() ){
-			$this->log( 'Expired tax certificate: ' . $timestamp . ' < ' . time() );
+			$this->log( 'Expired tax certificate: ' . $timestamp . ' < ' . time(), __LINE__ );
 			return false;
 		}
 		return true;
@@ -878,55 +898,114 @@ class dap_woocommerce_taxjar_expansion{
 	 * and assign the tax exempt role.
 	 *
 	 * $user_id
-	 * $status = true | false
+	 * $exempt = true | false
 	 * 
 	 * Returns null if no status change
 	 * Returns true if new status status changed and is exempt
 	 * Returns false if status changed to not exempt
 	 */
-	private function make_user_exempt( $user_id, $status ){
-		$old_status = get_user_meta( $user_id, 'tax_exemption_type', true );
-		
-		if( $status ){
+	private function update_user_exemption_status( $user_id, $exempt ){
+		$old_status = get_user_meta( $user_id, self::TAX_EXEMPTION_TYPE_META_KEY, true );
+
+		if( $exempt ){
 			// Preserve user's exempt status or use fallback if isn't already exempt
 			$status = $old_status ?: $this->settings['default_status'];
+		} else {
+			$status = '';
 		}
 
 		// Update Taxjar's meta field for the user
-		update_user_meta( $user_id, 'tax_exemption_type', $status );
+		update_user_meta( $user_id, self::TAX_EXEMPTION_TYPE_META_KEY, $status );
 		
 		// Add tax exempt role
-		$this->set_user_exempt_role( $user_id, $status );
+		$this->set_user_exempt_role( $user_id, $exempt );
 
-		if( $old_status != $status ){
-			// Use this to trigger TaxJar's native sync with TaxJar API function.
-			do_action( 'taxjar_customer_exemption_settings_updated', $user_id );
+		// Use this to trigger TaxJar's native sync with TaxJar API function.
+		do_action( 'taxjar_customer_exemption_settings_updated', $user_id, $status );
 
-			// Fix the cart totals if needed.
-			$this->recalculate_cart_totals( false, $user_id );
+		$this->sync_customer_with_taxjar($user_id, $status);
 
-			// Can be the new status or false
-			return $status;
-		} else {
-			return null;
-		}
+		// Fix the cart totals if needed.
+		$this->recalculate_cart_totals( false, $user_id );
+
+		// Can be the new status or false
+		return $status;
 	}
-	
-	/*
+
+	/**
+	 * Syncs a customer's exempt status with TaxJar
+	 * 
+	 * @param int $user_id
+	 * @param string $new_status
+	 * @return void
+	 */
+	private function sync_customer_with_taxjar( $user_id, $new_status ){
+		$customer_record = new TaxJar_Customer_Record($user_id);
+		$api_response = $customer_record->get_from_taxjar();
+		// Make sure that $api_response is not a WP_Error
+		if( is_wp_error( $api_response ) ){
+			$this->log( $api_response->get_error_message(), __LINE__ );
+			return;
+		}
+		
+		// Local WP_User data
+		$customer_record->load_object();
+		$customer_data_from_local = $customer_record->get_data_from_object();
+
+		// API data
+		$api_data = json_decode( $api_response['body'], true );
+		$customer_data_from_api = $api_data['customer'] ?? false;
+
+		if( ! is_array( $customer_data_from_api ) ){
+			$this->log( 'TaxJar API response not an array.', __LINE__ );
+			return;
+		}
+
+		// Make sure the customer exists in the TaxJar API
+		// $api_response['response']['code'] == 404 if customer not found
+		if ( $customer_data_from_api ) {
+			// Make sure that local data has the correct status
+			if(
+				! isset( $customer_data_from_local['exemption_type'] ) 
+				|| $customer_data_from_local['exemption_type'] != $new_status 
+			){
+				$this->log( 'Local data does not have the correct status. Local data status: ' . $customer_data_from_local['exemption_type'] . '. Expected status: ' . $new_status . '.', __LINE__ );
+				return;
+			}
+
+			// Sort arrays by key so we can compare them
+			ksort( $customer_data_from_local );
+			ksort( $customer_data_from_api );
+
+			// Compare the local data to the API data
+			if( $customer_data_from_local != $customer_data_from_api ){
+				// If they don't match, update the API
+				$customer_record->update_in_taxjar();
+			}
+		
+			return;
+		}
+
+		// Create a new customer in TaxJar API
+		// This shouldn't fire if TaxJar is creating a new TaxJar customer when the user is created.
+		$customer_record->create_in_taxjar();
+	}
+
+	/**
 	 * Add user's tax exempt role
 	 * 
-	 * $user_id
-	 * $status = false | ! false
+	 * @param int|string $user_id
+	 * @param bool $status
 	 *
 	 * Grant any non false $status the tax exempt role. Supports
 	 * Multiple Roles plugin and User Role Editor plugin.
 	 */
-	private function set_user_exempt_role( $user_id, $status ){
+	private function set_user_exempt_role( $user_id, $exempt ){
 		// Multuple Roles plugin passes an array of role slugs, so we need to intercept it and add/remove the tax exempt role to suit our purposes.
 		if( class_exists('MDMR_Checklist_Controller') ){
 			// Are we updating anything that might affect user roles?
 			if( isset( $_POST['md_multiple_roles'] ) ){
-				if( $status ){
+				if( $exempt ){
 					if( ! in_array( $this->role, $_POST['md_multiple_roles'] ) ){
 						$_POST['md_multiple_roles'][] = $this->role;
 					}
@@ -946,7 +1025,7 @@ class dap_woocommerce_taxjar_expansion{
 		if( class_exists('URE_User_Other_Roles') ){
 			if( isset( $_POST['ure_other_roles'] ) ){
 				$roles = explode(',', str_replace(' ', '', $_POST['ure_other_roles'] ) );
-				if( $status ){
+				if( $exempt ){
 					if( ! in_array( $this->role, $roles ) ){
 						$_POST['ure_other_roles'] .= ', tax_exempt';
 					}
@@ -964,7 +1043,7 @@ class dap_woocommerce_taxjar_expansion{
 		
 		// Always just add/remove the role from the user, regardless of other user role plugins.
 		$user = new WP_User( $user_id );
-		if( $status ){
+		if( $exempt ){
 			$user->add_role($this->role);
 		} else {
 			$user->remove_role($this->role);

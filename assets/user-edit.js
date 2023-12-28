@@ -22,8 +22,8 @@ jQuery(function($){
 	
 	// When settings indicate that users should be auto assigned their tax exemption, disable the default field
 	if( taxjarExpansion.autoAssign ){
-		$('#tax_exemption_type').attr('disabled',true)
-		$('#tax_exemption_type').next('.description').html('This field is auto-assigned based on the the TaxJar Expansion plugin settings below.')
+		$('#' + taxjarExpansion.taxExemptionTypeMetaKey).attr('disabled',true)
+		$('#' + taxjarExpansion.taxExemptionTypeMetaKey).next('.description').html('This field is auto-assigned based on the the TaxJar Expansion plugin settings below.')
 	}
 
 	// When 501c3 is checked, disable expiration date as it's not needed
