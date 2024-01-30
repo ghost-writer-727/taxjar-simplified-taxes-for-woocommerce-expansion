@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) )  exit; // Exit if accessed directly
 Plugin Name: TaxJar - Sales Tax Automation for WooCommerce - Expansion
 Plugin URI: http://www.danielpurifoy.com
 Description: Enhances the capabilities of the TaxJar plugin to make it more fully integrated with WooCommerce. • Add certificate upload & expiration dates to user profile, which can be sent to Zapier. • Add support to sync additional order statuses. • Auto-assign a default tax exempt status based on certificate & expiration. • Use Zapier to pass expiration date updates directly to TaxJar, Sheets, etc. • Use Zapier to copy the certificate file to Dropbox, AWS, etc. • Create a temporary tax exempt period for all users (for onboarding) • Create a user role for those who are tax exempt for helping with conditional theme elements and settings.
-Version: 1.6.0
+Version: 1.6.1
 Requires at least: 5.5
 Requires PHP: 7.3
 Author: Daniel Purifoy
@@ -615,7 +615,8 @@ class dap_woocommerce_taxjar_expansion{
 				}
 			}
 		} else if(
-			$_POST[$this->slug . '-delete-cert'] == 'true'
+			isset( $_POST[$this->slug . '-delete-cert'] )
+			&& $_POST[$this->slug . '-delete-cert'] == 'true'
 		){
 			/* Saving these so we can inspect or recover them if needed for auditing purposes.
 			// Find the previous cert and delete it
