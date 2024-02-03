@@ -20,3 +20,8 @@ html[uip-admin-theme=true] p.description.grayed_out,
 p.description.grayed_out {
 	color: #AAA;
 }
+
+.tje-readonly-gray {
+	filter: grayscale();
+	opacity: 0.5;
+}
