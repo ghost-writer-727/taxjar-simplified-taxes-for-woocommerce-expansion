@@ -48,7 +48,11 @@ class SettingsManager {
 		
 		// Format settings
 		$this->settings['override_cutoff'] = strtotime( $this->settings['override_cutoff'] );		
-		$this->settings['log_admin_errors'] = wc_string_to_bool( $this->settings['log_admin_errors'] );
+		$this->settings['log_admin_errors'] = 
+			$this->settings['log_admin_errors'] === 'yes' 
+			|| $this->settings['log_admin_errors'] === true 
+			|| $this->settings['log_admin_errors'] === 'on' 
+			|| $this->settings['log_admin_errors'] === 1;
  	}
 
 	/**
