@@ -5,8 +5,13 @@ defined( 'ABSPATH' ) || exit;
 
 class AdminAlert{
     CONST TRANSIENT = 'taxjar-expansion-admin-message';
+    private SettingsManager $settings_manager;
+    private array $settings;
 
     public function __construct( $message = '', $type = 'error' ){
+        $this->settings_manager = SettingsManager::get_instance();
+        $this->settings = $this->settings_manager->get_settings();
+
         if( $message ){
             $this->set_admin_message( $message, $type );
         }
@@ -38,7 +43,9 @@ class AdminAlert{
             'message' => $message,
             'type' => $type,
         ], 60 );
-        error_log( 'TaxJar Expansion - Admin Alert: ' . esc_html( $message ) );
+        if( $this->settings['log_admin_errors'] ){
+            error_log( 'TaxJar Expansion - Admin Alert: ' . esc_html( $message ) );
+        }
     }
 
     /**

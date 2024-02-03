@@ -18,6 +18,9 @@ class SettingsManager {
 
 	private function __construct(){
         $this->init();
+
+		add_filter( 'plugin_action_links_' . plugin_basename(TAXJAR_EXPANSION_PLUGIN_FILE), [$this, 'action_links'], 10, 2 );
+
 		add_filter( 'woocommerce_get_settings_taxjar-integration', [$this, 'register_additional_taxjar_settings'] );
 
 		add_filter( 'option_woocommerce_taxjar-integration_settings' , [ $this, 'option_woocommerce_taxjar_integration_settings_override' ], PHP_INT_MAX );
@@ -39,11 +42,14 @@ class SettingsManager {
 			'certificate_zap' => false,
 			'exempt_status_zap' => false,
 			'override_cutoff' => 'Aug 11, 1984 12:00am',
+			'log_admin_errors' => false,
 		];
 		$this->settings = array_merge( $default, get_option( self::OPTION_NAME, [] ) );
 		
+		// Format settings
 		$this->settings['override_cutoff'] = strtotime( $this->settings['override_cutoff'] );		
-	}
+		$this->settings['log_admin_errors'] = wc_string_to_bool( $this->settings['log_admin_errors'] );
+ 	}
 
 	/**
 	 * Get the settings
@@ -124,7 +130,12 @@ class SettingsManager {
 				'desc'		=> 'Prevents WooCommerce and TaxJar from calculating taxes until after this date.',
 				'id'		=> self::OPTION_NAME.'[override_cutoff]'
 			],
-
+			[
+				'title'		=> 'Log Admin error messages',
+				'type'		=> 'checkbox',
+				'desc'		=> 'Log admin messages to the error logs.',
+				'id'		=> self::OPTION_NAME.'[log_admin_errors]'
+			],
 		];
 		$expansion_settings[] =
 			[

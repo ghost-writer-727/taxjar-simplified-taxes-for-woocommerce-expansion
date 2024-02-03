@@ -37,6 +37,7 @@ class UserProfile{
     private function __construct(){
         $this->settings_manager = SettingsManager::get_instance();
         $this->settings = $this->settings_manager->get_settings();
+
     }
 
     /**
@@ -112,7 +113,7 @@ class UserProfile{
 					'type' => $certificate_uploaded['type'],
 				];
 
-				$old_certificate = get_user_meta( $user_id, self::IDS['certificate'], true );
+				$old_certificate = $this->get_user_certificate( $user_id );
 
 				$certificate_updated = update_user_meta( 
 					$user_id, 
@@ -153,7 +154,7 @@ class UserProfile{
 		// 501c3 Exemption
 		$is_501c3 = isset( $_POST[self::IDS['501c3']] ) ? true : false;
 		if( 
-			$is_501c3 != get_user_meta( $user_id, self::IDS['501c3'], true )
+			$is_501c3 != $this->get_user_501c3_status( $user_id )
 		){
 			$updated_501c3 = update_user_meta( 
 				$user_id, 
@@ -177,7 +178,7 @@ class UserProfile{
 		}
 		if( 
 			isset( $expiration ) 
-			&& $expiration != get_user_meta( $user_id, self::IDS['expiration'], true )
+			&& $expiration != $this->get_user_expiration( $user_id )
 		){
 			$updated_expiration = update_user_meta(
 				$user_id, 
@@ -334,10 +335,10 @@ class UserProfile{
 			: $this->get_user_certificate( $user_id );
 		$expiration = $expiration !== null 
 			? $expiration
-			: get_user_meta( $user_id, self::IDS['expiration'], true );
+			: $this->get_user_expiration( $user_id );
 		$is_501c3 = $is_501c3 !== null 
 			? $is_501c3 
-			: get_user_meta( $user_id, self::IDS['501c3'], true );
+			: $this->get_user_501c3_status( $user_id );
 
 		// Check that all requirements are met.
 		$invalidated = false;
@@ -371,6 +372,36 @@ class UserProfile{
 	 */
 	public function get_user_certificate( $user_id ){
 		return get_user_meta( $user_id, self::IDS['certificate'], true );
+	}
+
+	/**
+	 * Get a user's 501c3 status
+	 * 
+	 * @param int $user_id
+	 * @return bool
+	 */
+	public function get_user_501c3_status( $user_id ){
+		return get_user_meta( $user_id, self::IDS['501c3'], true );
+	}
+
+	/**
+	 * Get a user's certificate expiration date
+	 * 
+	 * @param int $user_id
+	 * @return int
+	 */
+	public function get_user_expiration( $user_id ){
+		return get_user_meta( $user_id, self::IDS['expiration'], true ) ?: 0;
+	}
+
+	/**
+	 * Get a user's exemption type
+	 * 
+	 * @param int $user_id
+	 * @return string
+	 */
+	public function get_user_exemption_type( $user_id ){
+		return get_user_meta( $user_id, self::TAX_EXEMPTION_TYPE_META_KEY, true );
 	}
 	
 	/**
@@ -453,7 +484,7 @@ class UserProfile{
         // $this->settings is not being initialized before this method is called. So we have to do it again here.
         $this->settings = $this->settings_manager->get_settings();
 
-		$old_status = get_user_meta( $user_id, self::TAX_EXEMPTION_TYPE_META_KEY, true );
+		$old_status = $this->get_user_exemption_type( $user_id );
 
 		if( $exempt ){
 			// Preserve user's exempt status or use fallback if isn't already exempt
@@ -554,13 +585,14 @@ class UserProfile{
         return $this->settings_manager->is_tax_exempt_status( $this->get_user_exemption_type( $user_id) );
     }
 
-	/**	
+	/**
 	 * Get the user's tax exemption status
 	 * 
 	 * @param int $user_id
-	 * @return string $status
+	 * @return string
 	 */
-	public function get_user_exemption_type( $user_id ){
-		return get_user_meta( $user_id, self::TAX_EXEMPTION_TYPE_META_KEY, true );
+	public function download_certificate( $user_id ){
+		return DirectDownload::generate_secure_certificate_download_link( $user_id );
 	}
+
 }

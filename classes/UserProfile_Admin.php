@@ -50,9 +50,9 @@ class UserProfile_Admin extends UserProfile{
 	public function print_user_profile_fields( $user ){
 		$user_id = $user->ID;
 
-		$certificate = get_user_meta( $user_id, self::IDS['certificate'], true );
-		$is_501c3 = get_user_meta( $user_id, self::IDS['501c3'], true ) ? 1 : 0;
-		$expiration = get_user_meta( $user_id, self::IDS['expiration'], true );
+		$certificate = $this->get_user_certificate( $user_id );
+		$is_501c3 = $this->get_user_501c3_status( $user_id ) ? 1 : 0;
+		$expiration = $this->get_user_expiration( $user_id );
 		if( $expiration ) $expiration = date( 'Y-m-d', $expiration );
 		?>
 		<h2>TaxJar Sales Tax Exemptions Expansion</h2>

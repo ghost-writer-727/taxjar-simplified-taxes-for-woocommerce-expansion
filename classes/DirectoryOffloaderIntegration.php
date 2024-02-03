@@ -36,7 +36,7 @@ class DirectoryOffloaderIntegration{
 		if( !is_numeric($user_id) ) return;
 
 		// Get file info
-		$file_meta = get_user_meta( $user_id, $this->user_profile::IDS['certificate'], true );
+		$file_meta = $this->user_profile->get_user_certificate( $user_id );
 		
 		// Check if the offloaded file is truly the current certificate before updating user meta
 		if( $full_path !== $file_meta['path'] ) return;

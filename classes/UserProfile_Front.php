@@ -65,11 +65,11 @@ class UserProfile_Front extends UserProfile{
 	public function print_fields_on_front_end( $user_id = false ){
 		$user_id = $user_id ?: get_current_user_id();
 		
-		$exempt_status = get_user_meta( $user_id, self::TAX_EXEMPTION_TYPE_META_KEY, true ) ? '<span class="status-tax-exempt">Exempt</span>' : '<span class="status-non-exempt">Non-exempt</span>';		
+		$exempt_status = $this->get_user_exemption_type($user_id) ? '<span class="status-tax-exempt">Exempt</span>' : '<span class="status-non-exempt">Non-exempt</span>';		
 		
-		$certificate = get_user_meta( $user_id, self::IDS['certificate'], true );
-		$is_501c3 = get_user_meta( $user_id, self::IDS['501c3'], true ) ? 1 : 0;
-		$expiration = get_user_meta( $user_id, self::IDS['expiration'], true );
+		$certificate = $this->get_user_certificate( $user_id );
+		$is_501c3 = $this->get_user_501c3_status( $user_id ) ? 1 : 0;
+		$expiration = $this->get_user_expiration( $user_id );
 		if( $expiration ) $expiration = date( 'Y-m-d', $expiration );
 		?>
 		<h6>Tax Status: <em><?php echo $exempt_status ?></em></h6>
@@ -86,10 +86,10 @@ class UserProfile_Front extends UserProfile{
 					){
 						$button_label = 'Replace';
 						$current_filename = $certificate['label'];
-						$url = $certificate['url'];
+						$url = $this->download_certificate( $user_id );
 						// NOTE: Note revealing the download url to the customer could be a privacy risk for customers discovering all other tax certificates and more. So only reveal the filename for the moment.
 						$link = '<em>' . esc_html( $current_filename ) . '</em>';
-
+						$link = '<a href="' . esc_url( $url ) . '" target="_blank">' . $link . '</a>';
 					} else {
 						$button_label = 'Upload';
 						$current_filename = '';
