@@ -30,7 +30,10 @@ class TaxJarAPIIntegration{
 	 */
 	public function use_exemption_to_hash_cache( array $request_array, \TaxJar\Tax_Request_Body $request_obj ){
 
-		$user_id = $request_array['customer_id'] ?? $request_array['customer_id'] ?: false;
+
+		$user_id = isset( $request_array['customer_id'] ) && $request_array['customer_id'] 
+			? $request_array['customer_id']
+			: false;
 		if( $user_id ){
 			$exemption_type = $this->user_profile->get_user_exemption_type( $user_id );
 			$request_array['exemption_type'] = $exemption_type ?: 'non_exempt';
