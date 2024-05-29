@@ -371,7 +371,8 @@ class UserProfile{
 	 * @return null | array( 'url' => string, 'path' => string, 'label' => string )
 	 */
 	public function get_user_certificate( $user_id ){
-		return get_user_meta( $user_id, self::IDS['certificate'], true );
+		$certificate = get_user_meta( $user_id, self::IDS['certificate'], true );
+		return apply_filters( 'taxjar_expansion_get_user_certificate', $certificate, $user_id );
 	}
 
 	/**
@@ -381,7 +382,8 @@ class UserProfile{
 	 * @return bool
 	 */
 	public function get_user_501c3_status( $user_id ){
-		return get_user_meta( $user_id, self::IDS['501c3'], true );
+		$is_501c3 = get_user_meta( $user_id, self::IDS['501c3'], true );
+		return apply_filters( 'taxjar_expansion_get_user_501c3_status', $is_501c3, $user_id );
 	}
 
 	/**
@@ -391,7 +393,8 @@ class UserProfile{
 	 * @return int
 	 */
 	public function get_user_expiration( $user_id ){
-		return get_user_meta( $user_id, self::IDS['expiration'], true ) ?: 0;
+		$user_expiration = get_user_meta( $user_id, self::IDS['expiration'], true ) ?: 0;
+		return apply_filters( 'taxjar_expansion_get_user_expiration', $user_expiration, $user_id );
 	}
 
 	/**
@@ -401,7 +404,8 @@ class UserProfile{
 	 * @return string
 	 */
 	public function get_user_exemption_type( $user_id ){
-		return get_user_meta( $user_id, self::TAX_EXEMPTION_TYPE_META_KEY, true );
+		$exemption_type = get_user_meta( $user_id, self::TAX_EXEMPTION_TYPE_META_KEY, true );
+		return apply_filters( 'taxjar_expansion_get_user_exemption_type', $exemption_type, $user_id );
 	}
 	
 	/**
