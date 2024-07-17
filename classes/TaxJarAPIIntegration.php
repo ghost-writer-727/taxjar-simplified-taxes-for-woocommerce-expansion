@@ -12,6 +12,7 @@ class TaxJarAPIIntegration{
 		$this->settings = SettingsManager::get_instance()->get_settings();
 		$this->user_profile = UserProfile::get_instance();
 		add_filter( 'taxjar_tax_request_body', [$this, 'use_exemption_to_hash_cache'], 10, 2 );
+		add_action( 'taxjar_expansion_customer_exemption_status_updated', [$this, 'update_taxjar_customer_record'], 10 );
 
     }
 
@@ -41,6 +42,23 @@ class TaxJarAPIIntegration{
 
 		return $request_array;
 
+	}
+
+	private function update_taxjar_customer_record($user_id) {
+		$customer_record = new \TaxJar_Customer_Record($user_id);
+	
+		// Load existing customer record if it exists
+		if ($customer_record->get_from_taxjar()) {
+			$result = $customer_record->update_in_taxjar();
+		} else {
+			$result = $customer_record->create_in_taxjar();
+		}
+	
+		if (is_wp_error($result)) {
+			error_log("TaxJar sync failed for user_id: $user_id. Error: " . $result->get_error_message());
+		} else {
+			error_log("TaxJar sync successful for user_id: $user_id.");
+		}
 	}
 		
 }
