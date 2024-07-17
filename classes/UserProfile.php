@@ -205,7 +205,11 @@ class UserProfile{
 			}
 		}
 
-		TaxJarAPIIntegration::update_taxjar_customer_record( $user_id );
+		if( is_wp_error( TaxJarAPIIntegration::update_taxjar_customer_record( $user_id ) ) ){
+			if( is_admin() ){
+				new AdminAlert( 'TaxJar sync failed for user_id: ' . $user_id );
+			}
+		}
 	}
 
 	/**

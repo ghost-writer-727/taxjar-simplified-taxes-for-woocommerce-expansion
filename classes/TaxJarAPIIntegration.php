@@ -53,10 +53,10 @@ class TaxJarAPIIntegration{
 		}
 	
 		if (is_wp_error($result)) {
-			error_log("TaxJar sync failed for user_id: $user_id. Error: " . $result->get_error_message());
-		} else {
-			error_log("TaxJar sync successful for user_id: $user_id.");
+			$message = "TaxJar sync failed for user_id: $user_id. Error: " . $result->get_error_message();
+			return new \WP_Error('taxjar_sync_error', $message);
 		}
+		return true;
 	}
 		
 }
