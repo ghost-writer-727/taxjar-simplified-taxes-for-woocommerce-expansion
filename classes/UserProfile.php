@@ -204,6 +204,8 @@ class UserProfile{
 				}
 			}
 		}
+
+		TaxJarAPIIntegration::update_taxjar_customer_record( $user_id );
 	}
 
 	/**
