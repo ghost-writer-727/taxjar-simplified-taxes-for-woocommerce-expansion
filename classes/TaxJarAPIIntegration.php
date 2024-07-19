@@ -44,7 +44,7 @@ class TaxJarAPIIntegration{
 
 	public static function update_taxjar_customer_record($user_id) {
 		$customer_record = new \TaxJar_Customer_Record($user_id);
-	
+		$customer_record->load_object();
 		// Load existing customer record if it exists
 		if ($customer_record->get_from_taxjar()) {
 			$result = $customer_record->update_in_taxjar();

@@ -72,7 +72,7 @@ class UserProfile_Front extends UserProfile{
 		$expiration = $this->get_user_expiration( $user_id );
 		if( $expiration ) $expiration = date( 'Y-m-d', $expiration );
 		?>
-		<h6>Tax Status: <em><?php echo $exempt_status ?></em></h6>
+		<h6 class="tax-status">Tax Status: <em><?php echo $exempt_status ?></em></h6>
 		<hr>
 		<form class="woocommerce-EditAccountForm <?php echo self::TAX_STATUS_TAB_SLUG ?>" action="" method="post" enctype="multipart/form-data">
 			<fieldset>
@@ -115,7 +115,7 @@ class UserProfile_Front extends UserProfile{
 				</p>
 				<p class="woocommerce-form-row woocommerce-form-row--last form-row form-row-last">
 					<label for="<?php echo self::IDS['501c3'] ?>">Non-expiring 501c3 Certificate</label>
-					<input type="checkbox" id="<?php echo self::IDS['501c3'] ?>" name="<?php echo self::IDS['501c3'] ?>" value="<?php echo esc_attr( $is_501c3 ); ?>" <?php checked( $is_501c3, 1 ); ?> /> <span>Is this a 501c3 Certificate without an expiration?</span>
+					<input type="checkbox" id="<?php echo self::IDS['501c3'] ?>" name="<?php echo self::IDS['501c3'] ?>" value="<?php echo esc_attr( $is_501c3 ); ?>" <?php checked( $is_501c3, 1 ); ?> /> <span class="desc-501c3">Is this a 501c3 Certificate without an expiration?</span>
 
 				</p>
 				<div class="clear" style="padding-bottom:1em"></div>
@@ -141,7 +141,7 @@ class UserProfile_Front extends UserProfile{
 			! isset( $_POST['action'] ) 
 			|| 	'my_account_save_tax_status' !== $_POST['action'] 
 			|| 	! isset( $_POST['_wp_http_referer'] )
-			|| 	$_POST['_wp_http_referer'] !== '/my-account/' . self::TAX_STATUS_TAB_SLUG . '/'
+			|| 	strpos( $_POST['_wp_http_referer'], self::TAX_STATUS_TAB_SLUG ) === false
 			|| 	! isset( $_POST[self::NONCE_NAME] )
 			|| 	! wp_verify_nonce( $_POST[self::NONCE_NAME], self::NONCE_ACTION )
 		) {
