@@ -3,7 +3,7 @@
 Plugin Name: TaxJar - Sales Tax Automation for WooCommerce - Expansion
 Plugin URI: http://www.danielpurifoy.com
 Description: Enhances the capabilities of the TaxJar plugin to make it more fully integrated with WooCommerce. • Add certificate upload & expiration dates to user profile, which can be sent to Zapier. • Add support to sync additional order statuses. • Auto-assign a default tax exempt status based on certificate & expiration. • Use Zapier to pass expiration date updates directly to TaxJar, Sheets, etc. • Use Zapier to copy the certificate file to Dropbox, AWS, etc. • Create a temporary tax exempt period for all users (for onboarding) • Create a user role for those who are tax exempt for helping with conditional theme elements and settings.
-Version: 2.1.4
+Version: 2.1.6
 Requires at least: 5.5
 Requires PHP: 8.0
 Author: Daniel Purifoy
@@ -17,7 +17,7 @@ define( 'TAXJAR_EXPANSION_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 define( 'TAXJAR_EXPANSION_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'TAXJAR_EXPANSION_PLUGIN_SLUG', 'taxjar_expansion' );
 
-require 'submodules/class-Webhooker.php';
+require 'classes/Webhooker/class-Webhooker.php';
 require 'classes/AdminAlert.php';
 require 'classes/DirectDownload.php';
 require 'classes/DirectoryOffloaderIntegration.php';
