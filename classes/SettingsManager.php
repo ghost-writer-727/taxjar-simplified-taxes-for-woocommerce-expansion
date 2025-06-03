@@ -41,6 +41,8 @@ class SettingsManager {
 			'501c3_zap' => false,
 			'certificate_zap' => false,
 			'exempt_status_zap' => false,
+			'expiring_status_zap' => false,
+			'expiring_status_zap_days' => 14,
 			'override_cutoff' => 'Aug 11, 1984 12:00am',
 			'log_admin_errors' => false,
 		];
@@ -121,6 +123,19 @@ class SettingsManager {
 				'type'    => 'text',
 				'desc'    => 'When certificate is uploaded, send data to Zapier.',
 				'id'      => self::OPTION_NAME.'[certificate_zap]',
+			],
+			[
+				'title'   => 'Expiring Status Zapier Catchhook',
+				'type'    => 'text',
+				'desc'    => 'When expiring status is changed, send data to Zapier.',
+				'id'      => self::OPTION_NAME.'[expiring_status_zap]',
+			],
+			[
+				'title'   => 'Expiring Status Days',
+				'type'    => 'number',
+				'desc'    => 'Number of days before expiring status is changed.',
+				'id'      => self::OPTION_NAME.'[expiring_status_zap_days]',
+				'default' => 14
 			],
 			[
 				'title'   => 'Exempt Status Zapier Catchhook',
