@@ -3,7 +3,7 @@
 Plugin Name: TaxJar - Sales Tax Automation for WooCommerce - Expansion
 Plugin URI: http://www.danielpurifoy.com
 Description: Enhances the capabilities of the TaxJar plugin to make it more fully integrated with WooCommerce. • Add certificate upload & expiration dates to user profile, which can be sent to Zapier. • Add support to sync additional order statuses. • Auto-assign a default tax exempt status based on certificate & expiration. • Use Zapier to pass expiration date updates directly to TaxJar, Sheets, etc. • Use Zapier to copy the certificate file to Dropbox, AWS, etc. • Create a temporary tax exempt period for all users (for onboarding) • Create a user role for those who are tax exempt for helping with conditional theme elements and settings.
-Version: 2.1.6
+Version: 2.2.1
 Requires at least: 5.5
 Requires PHP: 8.0
 Author: Daniel Purifoy
@@ -21,6 +21,7 @@ require 'classes/Webhooker/class-Webhooker.php';
 require 'classes/AdminAlert.php';
 require 'classes/DirectDownload.php';
 require 'classes/DirectoryOffloaderIntegration.php';
+require 'classes/ExpiringAlerts.php';
 require 'classes/SettingsManager.php';
 require 'classes/TaxJarAPIIntegration.php';
 require 'classes/UserProfile.php';
@@ -34,6 +35,7 @@ class Plugin {
 	CONST DB_VERSION_OPTION = 'taxjar_expansion_db_version';
 	private DirectDownload $direct_download;
 	private DirectoryOffloaderIntegration $directory_offloader_integration;
+	private ExpiringAlerts $expiring_alerts;
 	private SettingsManager $settings_manager;
 	private TaxJarAPIIntegration $taxjar_api_integration;
 	private UserProfile $user_profile;
@@ -52,6 +54,7 @@ class Plugin {
 		$this->direct_download = DirectDownload::get_instance();
 		$this->directory_offloader_integration = new DirectoryOffloaderIntegration();
 		$this->settings_manager = SettingsManager::get_instance();
+		$this->expiring_alerts = ExpiringAlerts::get_instance();
 		$this->taxjar_api_integration = new TaxJarAPIIntegration();
 		$this->user_profile = UserProfile::get_instance();
 		$this->user_profile_admin = new UserProfile_Admin();
