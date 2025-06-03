@@ -325,25 +325,31 @@ class UserProfile{
     }
 
 	/**
-	 * Patch 2.2.1 for re-evaluate_exempt_eligibility
+	 * Patch 2.2.2 for re-evaluate_exempt_eligibility
 	 */
-	public function patch_2_2_1() {
+	public function patch_2_2_2() {
+		error_log('Patch 2.2.2 running');
+
 		$allowed_user_id = 788; // Only DPurifoy can run
 		$current_user     = wp_get_current_user();
 
 		if ( (int) $current_user->ID !== $allowed_user_id ) {
+			error_log( 'Patch 2.2.2 not run: User ID ' . $current_user->ID . ' is not ' . $allowed_user_id );
 			return;
 		}
 
-		$patched_key         = 'taxjar_expansion_2_2_1_patched';
-		$unpatched_users_key = 'taxjar_expansion_2_2_1_unpatched_users';
+		// clear any cached options
+		wp_cache_flush();
 
-		if ( get_option( $patched_key ) === true ) {
+		$patched_key         = 'taxjar_expansion_2_2_2_patched';
+		$unpatched_users_key = 'taxjar_expansion_2_2_2_unpatched_users';
+		if ( get_option( $patched_key ) ) {
+			error_log( 'Patch 2.2.2 not run: Already patched. option_value: ' . get_option( $patched_key ) );
 			return;
 		}
 
 		$unpatched_users = get_option( $unpatched_users_key );
-		if ( $unpatched_users === false ) {
+		if ( empty($unpatched_users) ) {
 			global $wpdb;
 
 			$results = $wpdb->get_col("
@@ -356,19 +362,26 @@ class UserProfile{
 				LEFT JOIN {$wpdb->usermeta} um_type
 					ON um_type.user_id = u.ID
 					AND um_type.meta_key = 'tax_exemption_type'
-				WHERE um_type.user_id IS NULL
+				WHERE (
+					um_type.user_id IS NULL 
+					OR um_type.meta_value = ''
+					OR um_type.meta_value IS NULL
+				)
 			");
 
 			$unpatched_users = array_map( 'intval', $results );
 			update_option( $unpatched_users_key, $unpatched_users );
+			error_log( 'Patch 2.2.2 run: Found ' . count( $unpatched_users ) . ' unpatched users.' );
 		}
 
 		$x = 0;
+		$batch_size = 100;
 		foreach ( $unpatched_users as $index => $user_id ) {
 			$this->evaluate_exempt_eligibility( $user_id );
 			unset( $unpatched_users[ $index ] );
 
-			if ( ++$x >= 100 ) {
+			if ( ++$x >= $batch_size ) {
+				error_log( 'Patch 2.2.2 run: Patched ' . $batch_size . ' users. Break for now.' );
 				break;
 			}
 		}
@@ -376,8 +389,10 @@ class UserProfile{
 		if ( empty( $unpatched_users ) ) {
 			update_option( $patched_key, true );
 			delete_option( $unpatched_users_key );
+			error_log( 'Patch 2.2.2 run: All users patched.' );
 		} else {
 			update_option( $unpatched_users_key, array_values( $unpatched_users ) );
+			error_log( 'Patch 2.2.2 run: ' . count( $unpatched_users ) . ' users left unpatched.');
 		}
 	}
 
