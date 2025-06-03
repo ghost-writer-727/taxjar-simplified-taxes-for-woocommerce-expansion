@@ -97,6 +97,9 @@ class UserProfile{
      * @return void
      */
 	public function save_custom_fields( $user_id ){
+		// Store old status
+		$old_status = $this->get_user_exemption_type( $user_id );
+
 		// Certificate Upload
 		$upload = $_FILES[self::IDS['certificate']] ?? false;
 		if( 
@@ -156,7 +159,7 @@ class UserProfile{
 		if( 
 			$is_501c3 != $this->get_user_501c3_status( $user_id )
 		){
-			$updated_501c3 = update_user_meta( 
+			$_501c3_updated = update_user_meta( 
 				$user_id, 
 				self::IDS['501c3'], 
 				$is_501c3
@@ -168,6 +171,7 @@ class UserProfile{
 		if( $is_501c3 ){
 			$expiration = false;
 		} else if( isset( $_POST[self::IDS['expiration']] ) ){
+			$old_expiration = $this->get_user_expiration( $user_id );
 			$expiration = $_POST[self::IDS['expiration']];
 			$expiration = $expiration ? strtotime( $expiration . ' 11:59:59 PM' ) : false;
 			if( $expiration && $expiration < time() ){
@@ -180,24 +184,24 @@ class UserProfile{
 			isset( $expiration ) 
 			&& $expiration != $this->get_user_expiration( $user_id )
 		){
-			$updated_expiration = update_user_meta(
+			$expiration_updated = update_user_meta(
 				$user_id, 
 				self::IDS['expiration'],
 				$expiration
 			);
-            do_action( 'taxjar_expansion_customer_expiration_updated', $user_id, $expiration);
+            do_action( 'taxjar_expansion_customer_expiration_updated', $user_id, $expiration, $old_expiration);
 		}
 
 		// If any of these were modified, then recheck exemption status
 		if( 
 			isset( $certificate_updated )
             || isset( $certificate_deleted )
-			|| isset( $updated_501c3 )
-			|| isset( $updated_expiration )
+			|| isset( $_501c3_updated )
+			|| isset( $expiration_updated )
 		){
 			$new_status = $this->evaluate_exempt_eligibility( $user_id, ( $certificate ?? null ), $is_501c3, ( $expiration ?? null ) );
 			if( $new_status !== null ){
-                do_action( 'taxjar_expansion_customer_exemption_status_updated', $user_id, $new_status);
+                do_action( 'taxjar_expansion_customer_exemption_status_updated', $user_id, $new_status, $old_status);
 
 				if( ! is_admin() ){
 					wc_add_notice( 'Tax status changed to ' . ($new_status ? 'Exempt' : 'Not Exempt') .'!', ($new_status ? 'success' : 'error') );
@@ -319,6 +323,63 @@ class UserProfile{
 
         return $certificate_deleted;
     }
+
+	/**
+	 * Patch 2.2.1 for re-evaluate_exempt_eligibility
+	 */
+	public function patch_2_2_1() {
+		$allowed_user_id = 788; // Only DPurifoy can run
+		$current_user     = wp_get_current_user();
+
+		if ( (int) $current_user->ID !== $allowed_user_id ) {
+			return;
+		}
+
+		$patched_key         = 'taxjar_expansion_2_2_1_patched';
+		$unpatched_users_key = 'taxjar_expansion_2_2_1_unpatched_users';
+
+		if ( get_option( $patched_key ) === true ) {
+			return;
+		}
+
+		$unpatched_users = get_option( $unpatched_users_key );
+		if ( $unpatched_users === false ) {
+			global $wpdb;
+
+			$results = $wpdb->get_col("
+				SELECT u.ID
+				FROM {$wpdb->users} u
+				INNER JOIN {$wpdb->usermeta} um_role
+					ON um_role.user_id = u.ID
+					AND um_role.meta_key = '{$wpdb->prefix}capabilities'
+					AND um_role.meta_value LIKE '%tax_exempt%'
+				LEFT JOIN {$wpdb->usermeta} um_type
+					ON um_type.user_id = u.ID
+					AND um_type.meta_key = 'tax_exemption_type'
+				WHERE um_type.user_id IS NULL
+			");
+
+			$unpatched_users = array_map( 'intval', $results );
+			update_option( $unpatched_users_key, $unpatched_users );
+		}
+
+		$x = 0;
+		foreach ( $unpatched_users as $index => $user_id ) {
+			$this->evaluate_exempt_eligibility( $user_id );
+			unset( $unpatched_users[ $index ] );
+
+			if ( ++$x >= 100 ) {
+				break;
+			}
+		}
+
+		if ( empty( $unpatched_users ) ) {
+			update_option( $patched_key, true );
+			delete_option( $unpatched_users_key );
+		} else {
+			update_option( $unpatched_users_key, array_values( $unpatched_users ) );
+		}
+	}
 
 	 /**
 	  * Evaluate if a user should be exempt
