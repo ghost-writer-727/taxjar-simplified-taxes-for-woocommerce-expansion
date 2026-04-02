@@ -34,8 +34,11 @@ class TaxJarAPIIntegration{
 			? $request_array['customer_id']
 			: false;
 		if( $user_id ){
-			$exemption_type = $this->user_profile->get_user_exemption_type( $user_id );
-			$request_array['exemption_type'] = $exemption_type ?: 'non_exempt';
+			// Only set exemption_type if not already present in request
+			if ( ! isset( $request_array['exemption_type'] ) || empty( $request_array['exemption_type'] ) ) {
+				$exemption_type = $this->user_profile->get_user_exemption_type( $user_id );
+				$request_array['exemption_type'] = $exemption_type ?: 'non_exempt';
+			}
 		}
 
 		return $request_array;

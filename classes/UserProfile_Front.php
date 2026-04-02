@@ -17,7 +17,16 @@ class UserProfile_Front extends UserProfile{
         add_action( 'woocommerce_account_' . self::TAX_STATUS_TAB_SLUG . '_endpoint', [$this, 'print_fields_on_front_end'] );
         add_action( 'template_redirect',[$this, 'my_account_save_tax_status'] );
         
-        add_action( 'wp_enqueue_scripts', [$this, 'enqueue_scripts'] );		
+        add_action( 'wp_enqueue_scripts', [$this, 'enqueue_scripts'] );
+
+        // Hook into TaxJar's exemption type filter for cart tax calculation
+        add_filter( 'taxjar_cart_exemption_type', [$this, 'get_cart_exemption_type'], 10, 2 );
+
+        // Hook into TaxJar's exemption type filter for order tax calculation
+        add_filter( 'taxjar_order_calculation_exemption_type', [$this, 'get_order_exemption_type'], 10, 2 );
+
+        // Disable TaxJar cache for exempt users to prevent stale cached rates
+        add_filter( 'taxjar_should_use_cached_rate', [$this, 'disable_cache_for_exempt_users'], 10, 2 );		
     }
 
 	/**
@@ -190,4 +199,109 @@ class UserProfile_Front extends UserProfile{
             );
         }
     }
+
+	/**
+	 * Set exemption type for TaxJar cart tax calculation
+	 * 
+	 * @param string $exemption_type Current exemption type
+	 * @param WC_Cart $cart Cart object
+	 * @return string Exemption type (wholesale, government, other) or empty string
+	 */
+	public function get_cart_exemption_type( $exemption_type, $cart ) {
+		// If exemption type already set, use that
+		if ( ! empty( $exemption_type ) ) {
+			return $exemption_type;
+		}
+
+		// Get current user ID
+		$user_id = get_current_user_id();
+		if ( ! $user_id ) {
+			return $exemption_type;
+		}
+
+		// Check if user has tax_exempt role and return their exemption type
+		$user = new \WP_User( $user_id );
+		if ( in_array( self::ROLE, (array) $user->roles, true ) ) {
+			$exemption_type = $this->get_user_exemption_type( $user_id );
+			$final_type = $exemption_type ?: 'other';
+			return $final_type;
+		}
+
+		return $exemption_type;
+	}
+
+	/**
+	 * Set exemption type for TaxJar order tax calculation
+	 * 
+	 * @param string $exemption_type Current exemption type
+	 * @param WC_Order $order Order object
+	 * @return string Exemption type (wholesale, government, other) or empty string
+	 */
+	public function get_order_exemption_type( $exemption_type, $order ) {
+		// If exemption type already set, use that
+		if ( ! empty( $exemption_type ) ) {
+			return $exemption_type;
+		}
+
+		// Get customer ID from order
+		$user_id = $order->get_customer_id();
+		if ( ! $user_id ) {
+			return $exemption_type;
+		}
+
+		// Check if user has tax_exempt role and return their exemption type
+		$user = new \WP_User( $user_id );
+		if ( in_array( self::ROLE, (array) $user->roles, true ) ) {
+			$exemption_type = $this->get_user_exemption_type( $user_id );
+			return $exemption_type ?: 'other';
+		}
+
+		return $exemption_type;
+	}
+
+	/**
+	 * Disable TaxJar cache for exempt users to prevent stale cached rates
+	 * 
+	 * @param bool $should_use_cache
+	 * @param mixed $tax_request_body
+	 * @return bool
+	 */
+	public function disable_cache_for_exempt_users( $should_use_cache, $tax_request_body ) {
+		// Get exemption type from the request body
+		$exemption_type = $tax_request_body->get_exemption_type();
+		if ( ! empty( $exemption_type ) && $exemption_type !== 'non_exempt' ) {
+			return false;
+		}
+		return $should_use_cache;
+	}
+
+	/**
+	 * Log debug message to custom file
+	 * 
+	 * @param string $message
+	 * @return void
+	 */
+	private function debug_log( $message ) {
+		$log_dir = WP_CONTENT_DIR . '/uploads';
+		$log_file = $log_dir . '/taxjar-expansion-debug.log';
+
+		// Check if uploads directory exists, create if needed
+		if ( ! file_exists( $log_dir ) ) {
+			wp_mkdir_p( $log_dir );
+		}
+
+		// Check if directory is writable, try to make it writable
+		if ( ! is_writable( $log_dir ) ) {
+			chmod( $log_dir, 0755 );
+		}
+
+		// If still not writable, bail
+		if ( ! is_writable( $log_dir ) ) {
+			return;
+		}
+
+		$timestamp = date( 'Y-m-d H:i:s' );
+		$line = "[{$timestamp}] {$message}" . PHP_EOL;
+		file_put_contents( $log_file, $line, FILE_APPEND | LOCK_EX );
+	}
 }
